@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ===========================================
-# Instagram Info Bot with ASCII Banner
+# Instagram Info Bot (Advanced Version)
 # Author: Black Devil [CyberAmarjit]
 # ===========================================
 
@@ -22,45 +22,37 @@ with open(TOKEN_FILE, "r") as file:
     BOT_TOKEN = file.read().strip()
 
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="Markdown")
-
 loader = instaloader.Instaloader()
 
 print("🤖 Telegram Bot Started Successfully!")
 
 # ============================
-# ASCII Banner
+# Helper: Fetch Instagram Data
 # ============================
-def amarjit_ascii_banner():
-    return (
-        "```\n"
-        "  █████╗ ███╗   ███╗ █████╗ ██████╗      ██╗██╗████████╗\n"
-        " ██╔══██╗████╗ ████║██╔══██╗██╔══██╗     ██║██║╚══██╔══╝\n"
-        " ███████║██╔████╔██║███████║██████╔╝     ██║██║   ██║   \n"
-        " ██╔══██║██║╚██╔╝██║██╔══██║██╔══██╗██   ██║██║   ██║   \n"
-        " ██║  ██║██║ ╚═╝ ██║██║  ██║██║  ██║╚█████╔╝██║   ██║   \n"
-        " ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚════╝ ╚═╝   ╚═╝   \n"
-        "```"
-    )
+def fetch_instagram_profile(username):
+    try:
+        profile = instaloader.Profile.from_username(loader.context, username)
+        return profile
+    except Exception as e:
+        return str(e)
 
 # ============================
 # /start and /help Command
 # ============================
 @bot.message_handler(commands=['start', 'help'])
 def welcome_message(message):
-    banner = amarjit_ascii_banner()
     text = (
-        f"{banner}\n"
         "👋 *Welcome to Instagram Info Bot*\n\n"
-        "Just send me an Instagram username and I will fetch **full profile details** for you.\n\n"
-        "📖 *Commands:*\n"
+        "Just send me an Instagram username and I will give you detailed information.\n\n"
+        "Commands:\n"
         "• `/start` - Start the bot\n"
-        "• `/help` - Show this help message\n\n"
-        "✨ *Credit by* `AMARJIT`"
+        "• `/help` - Show this message\n\n"
+        "✨ *Created by* [CyberAmarjit](https://github.com/CyberAmarjit)"
     )
     bot.send_message(message.chat.id, text, disable_web_page_preview=True)
 
 # ============================
-# Main Handler for Username
+# Main Handler for User Input
 # ============================
 @bot.message_handler(func=lambda msg: True)
 def get_instagram_info(message):
@@ -69,6 +61,7 @@ def get_instagram_info(message):
 
     profile = fetch_instagram_profile(username)
 
+    # Agar profile object nahi mila to error dikhaye
     if isinstance(profile, str):
         bot.edit_message_text(
             chat_id=message.chat.id,
@@ -79,11 +72,10 @@ def get_instagram_info(message):
 
     try:
         # ============================
-        # Profile Info with ASCII Banner
+        # Profile Basic Info
         # ============================
-        banner = amarjit_ascii_banner()
         info_text = (
-            f"{banner}\n\n"
+            f"📸 *Instagram Profile Info*\n\n"
             f"👤 *Username:* `{profile.username}`\n"
             f"📝 *Full Name:* `{profile.full_name}`\n"
             f"🆔 *Instagram ID:* `{profile.userid}`\n"
@@ -94,8 +86,7 @@ def get_instagram_info(message):
             f"🔗 *Following:* `{profile.followees}`\n\n"
             f"👥 *Private Account:* {'Yes 🔒' if profile.is_private else 'No 🔓'}\n"
             f"✅ *Verified:* {'Yes ✅' if profile.is_verified else 'No ❌'}\n"
-            f"\n━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"✨ *Credit by* `AMARJIT`"
+            f"\n✨ *Created by* [CyberAmarjit](https://github.com/CyberAmarjit)"
         )
 
         # ============================
@@ -114,8 +105,9 @@ def get_instagram_info(message):
         # ============================
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("🌐 Open Profile", url=f"https://instagram.com/{username}"))
-        markup.add(types.InlineKeyboardButton("⬇ Download HD Profile Pic", callback_data=f"download_{username}"))
+        markup.add(types.InlineKeyboardButton("Download Profile Picture", callback_data=f"download_{username}"))
 
+        # Update loading message with photo + caption
         with open(photo_path, 'rb') as photo:
             bot.send_photo(
                 message.chat.id,
@@ -124,7 +116,10 @@ def get_instagram_info(message):
                 reply_markup=markup
             )
 
+        # Delete local file
         os.remove(photo_path)
+
+        # Delete loading message
         bot.delete_message(message.chat.id, loading.message_id)
 
     except Exception as e:
@@ -135,17 +130,7 @@ def get_instagram_info(message):
         )
 
 # ============================
-# Fetch Instagram Profile
-# ============================
-def fetch_instagram_profile(username):
-    try:
-        profile = instaloader.Profile.from_username(loader.context, username)
-        return profile
-    except Exception as e:
-        return str(e)
-
-# ============================
-# Callback Handler for HD Profile Pic
+# Callback Handler for Inline Buttons
 # ============================
 @bot.callback_query_handler(func=lambda call: call.data.startswith("download_"))
 def send_full_profile_pic(call):
@@ -166,12 +151,7 @@ def send_full_profile_pic(call):
                 file.write(chunk)
 
         with open(photo_path, 'rb') as photo:
-            bot.send_document(
-                call.message.chat.id,
-                photo,
-                caption=f"🎁 *HD Profile Picture of* `{username}`\n\n✨ *Credit by* `AMARJIT`",
-                parse_mode="Markdown"
-            )
+            bot.send_document(call.message.chat.id, photo, caption=f"🎁 *HD Profile Picture of* `{username}`", parse_mode="Markdown")
 
         os.remove(photo_path)
         bot.answer_callback_query(call.id, "✅ HD Profile Picture Sent!")
